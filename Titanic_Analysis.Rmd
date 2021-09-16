@@ -1,0 +1,185 @@
+---
+title: "Titanic Survival Prediction"
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    code_folding: none
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+---
+*By Beau H. Roundy*
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls(all=TRUE))
+```
+
+
+## Getting Started 
+To start we will activate the MASS package. 
+```{r}
+library(MASS)
+```
+
+## Training Model
+Next, we will pull in the Titanic dataset for our Model.
+```{r}
+# readxl will allow us to use the read_excel function to read in our excel file.
+library(readxl)
+
+# choose the file that constains the Titanic dataset that we will use to train our model.
+Train <- read_excel(file.choose())
+#Train <- read_excel("C:/Users/TitanoBeau/Desktop/Titanic_Logistic_Regression_inR/Titanic Survival Prediction/Titanic_Passengers_original_data.xlsx")
+
+# we want to attach the Train dataset to alter the R environment path by making the dataframe variables into global variables.
+attach(Train)
+#detach(Train)
+
+# Using the head function to display the top six rows and knitr to display widget.
+head(Train)
+knitr::kable(Train[1:4,])
+```
+
+
+Next, we need to prepare a dataset for scoring, such that our Model can acurately output predictions because each of the Independent variables match up. 
+
+I have prepared an excel file with observations on my Parents, my Siblings, and Myself. I called this excel file 'Will_My_Siblings_Survive_the_Titanic'.
+
+## Scoring Dataset
+Now, we can pull in the Scoring/Testing dataset. We will call it Score.
+```{r}
+# choose the file that contains the dataset you would like to score.
+Score <- read_excel(file.choose())
+
+# Using ScoreData to store the char datatype Names, and so Score can be all numeric.
+ScoreData <- Score
+
+# Using the head function to display the top six rows and knitr to display widget.
+head(Score)
+knitr::kable(Score[1:4,])
+```
+
+
+For our prediction, we want to use the following Independent variables: Name, Sex, Age, Siblings and Spouses, Parents and Children, and Passenger Class. 
+
+We will not include: Ticket #, Fare, Cabin, Port, and Home/Destination. 
+
+<b><u>*Note:</u> Because we globally set the Independent variables in our Train dataset with attach(Train), we can reference them by name 'Name' so that we don't have to also reference the table name 'Train$Name'.</b>
+```{r}
+# Using the subset function and -c() to Negatively select the columns from Train that we don't want.
+Train <- subset(Train, select = -c(`Ticket #`, Fare, Cabin, Port, `Home / Destination`))
+
+# Other option: Use the drop() function to Remove unwanted columns.
+# drop(Train$'Ticket #', Train$'Fare', Train$'Cabin', Train$'Port', Train$'Home / Destination')
+
+head(Train)
+knitr::kable(Train[1:4,])
+```
+
+Now, lets fix the Score Dataset.
+```{r}
+# Using the subset function and -c() to Negatively select the columns from Score that we don't want.
+Score <- subset(Score, select = -c(Name,Fare, Port))
+
+# Other option: Use the drop() function to Remove unwanted columns.
+#drop(Score$Fare, Score$Port)
+
+knitr::kable(Score[1:4,])
+```
+
+
+## Make sure all Independent Variables are Numberic
+Sex: Male = 0, and Female = 1.
+Survival Status: Died = 0, Lived = 1.
+```{r}
+# Using str() to check each datatype to make sure it is Numeric.
+str(Train)
+#---------
+str(Score)
+
+```
+
+## Removing Null Values
+We will remove the records with Null values.
+```{r}
+# Using the na.omit function to remove NULL obersvations.
+Train <- na.omit(Train)
+View(Train)
+```
+
+## Checking the Ranges
+Make sure that the Max and Min Ranges from the Score Dataset are not outside of the Max and Min Ranges in the Train Dataset.
+
+Now, we need to make sure each of the ordinal Independent variables in the Scoring dataset fall within the ranges of the ordinal Independent variables in the Training dataset. 
+```{r}
+# Uncomment and run this code to check that the Score dataset ranges fall inside the ranges of the Train dataset.
+
+#str(Train)
+#range(Train$Sex)
+#range(Score$Sex)
+#print("Make sure the Score Min > Train Min and Score Max < Train Max")
+
+#range(Train$Age)
+#range(Score$Age)
+#print("Make sure the Score Min > Train Min and Score Max < Train Max")
+
+#range(Train$`Siblings and Spouses`)
+#range(Score$`Siblings and Spouses`)
+#print("Make sure the Score Min > Train Min and Score Max < Train Max")
+
+#range(Train$`Parents and Children`)
+#range(Score$`Parents and Children`)
+#print("Make sure the Score Min > Train Min and Score Max < Train Max")
+
+#range(Train$`Passenger Class`)
+#range(Score$`Passenger Class`)
+#print("Make sure the Score Min > Train Min and Score Max < Train Max")
+```
+
+## Setting the Model
+Now, we can set the Logistic Regression Model.
+```{r}
+# Using glm.fit to clarrify that we are fitting a Logistic Regression model.
+LogisticModel <- glm(`Survival Status` ~ Sex + Age + `Siblings and Spouses` + `Parents and Children` + `Passenger Class`, data = Train, family=binomial)
+
+
+# Tools to look at the statistics and datatype properties.
+#summary(LogisticModel)
+#str(Train)
+```
+
+## Making the Predictions
+Now, we can use the Model to make our predictions.
+```{r}
+#Using the predict function to apply our Model with the Score dataset.
+LogisticPrediction <- predict(LogisticModel, Score, type = "response")
+```
+
+## Prediciton Category
+```{r}
+# If the Prediction result is greater than 50% then we predict that they lived. If it is less than 50% we predict that they died.
+PredictionCategory <- ifelse(LogisticPrediction > 0.5, "Lived", "Died")
+```
+
+
+## Displaying the Output
+Now, we will make an Output object to contain and then display our predictions.
+```{r}
+Output <- data.frame(ScoreData$Name, PredictionCategory, LogisticPrediction, Score)
+
+View(Output)
+# Displaying the Output.
+knitr::kable(Output)
+```
+
+```{r, include=FALSE}
+#See https://www.datacamp.com/community/tutorials/logistic-regression-R for information on Logistic Regression in R.
+```
+
+On your own, feel free to Add and Remove some of the Independent Variables. I have added code that will add or remove Passenger Class depending on which line of code gets commented. Feel free to play around with that as you see fit.
+
+I hope this R notebook is helpful to you!
+
+Thanks,<br/>
+From Beau Roundy
